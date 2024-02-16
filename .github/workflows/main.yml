@@ -1,0 +1,38 @@
+name: Update cidr.txt
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+
+jobs:
+  update-cidr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rename cidr.txt to cidr-old.txt
+        run: mv cidr.txt cidr-old.txt || true
+        
+      - name: Download latest cidr.txt
+        run: wget https://core.telegram.org/resources/cidr.txt
+
+      - name: Process cidr.txt
+        run: |
+          while IFS= read -r line; do
+            if [[ $line == *":"* ]]; then
+              sed -i "s|$line|IP-CIDR6,$line|g" cidr.txt
+            else
+              sed -i "s|$line|IP-CIDR,$line|g" cidr.txt
+            fi
+          done < cidr.txt
+
+      - name: Compare cidr.txt and cidr-old.txt and commit changes
+        run: |
+          if ! cmp -s cidr.txt cidr-old.txt; then
+            git config --global user.name 'gfw-bomber'
+            git config --global user.email 'great.firewall.bomber@gmail.com'
+            git add cidr.txt
+            git commit -m "Update cidr.txt"
+            git push origin main
+          fi
